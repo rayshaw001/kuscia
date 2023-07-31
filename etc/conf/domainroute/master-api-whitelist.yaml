@@ -1,0 +1,14 @@
+
+namespaces: 
+  - name: master
+    apis:
+      - /hello
+      - /world
+  - name: bob
+    apis:
+      - /hello
+      - /world
+  - name: alice
+    apis:
+      - /hello
+      - /world

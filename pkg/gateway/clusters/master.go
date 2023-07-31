@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	envoycluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -30,6 +31,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/durationpb"
+	"gopkg.in/yaml.v3"
 
 	kusciatokenauth "github.com/secretflow/kuscia-envoy/kuscia/api/filters/http/kuscia_token_auth/v3"
 
@@ -52,6 +54,15 @@ type MasterConfig struct {
 	MasterProxy   *ClusterConfig
 	APIServer     *ClusterConfig
 	KusciaStorage *ClusterConfig
+}
+
+type Namespace struct {
+	Name string
+	Apis []string
+}
+
+type WhitelistConfig struct {
+	Namespaces []Namespace
 }
 
 func AddMasterClusters(ctx context.Context, namespace string, config *MasterConfig) error {
@@ -155,6 +166,7 @@ func addMasterProxyVirtualHost(cluster, service, namespace string) error {
 	return xds.AddOrUpdateVirtualHost(internalVh, xds.InternalRoute)
 }
 
+// to do here
 func generateMasterInternalVirtualHost(cluster, service string, domains []string) *route.VirtualHost {
 	virtualHost := &route.VirtualHost{
 		Name:    fmt.Sprintf("%s-internal", cluster),
@@ -334,4 +346,23 @@ func addMasterHandshakeRoute(routeName string) {
 	if err := xds.AddOrUpdateVirtualHost(vh, routeName); err != nil {
 		nlog.Fatalf("%v", err)
 	}
+}
+
+func getMasterApiWhitelist(whitelistNamespace string, whitelistConfigFile string) []string {
+	var whitelistApis []string
+	var whitelistConfig WhitelistConfig
+	if content, err := os.ReadFile(whitelistConfigFile); err != nil {
+		nlog.Error(err)
+	} else {
+		if err = yaml.Unmarshal(content, &whitelistConfig); err != nil {
+			nlog.Fatal(err)
+		}
+	}
+	for i := 0; i < len(whitelistConfig.Namespaces); i++ {
+		if whitelistNamespace == whitelistConfig.Namespaces[i].Name {
+			whitelistApis = whitelistConfig.Namespaces[i].Apis
+			break
+		}
+	}
+	return whitelistApis
 }
