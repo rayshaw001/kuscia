@@ -1,14 +1,6 @@
 
-namespaces: 
-  - name: master
-    apis:
-      - /hello
-      - /world
-  - name: bob
-    apis:
-      - /hello
-      - /world
-  - name: alice
-    apis:
-      - /hello
-      - /world
+whitelist:
+  apis:
+    - /api/v1/*/query
+    - /api/v1/*/batchQuery
+    - /api/v1/*/list

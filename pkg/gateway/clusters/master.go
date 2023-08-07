@@ -21,6 +21,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	envoycluster "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -49,6 +51,11 @@ const (
 	virtualHostHandshake = "handshake-virtual-host"
 )
 
+var (
+	defaultRootDir       = "/home/kuscia/"
+	defaultWhitelistApis = "etc/conf/domainroute/master-api-whitelist.yaml"
+)
+
 type MasterConfig struct {
 	Master        bool
 	MasterProxy   *ClusterConfig
@@ -56,13 +63,8 @@ type MasterConfig struct {
 	KusciaStorage *ClusterConfig
 }
 
-type Namespace struct {
-	Name string
-	Apis []string
-}
-
-type WhitelistConfig struct {
-	Namespaces []Namespace
+type Whitelist struct {
+	APIs []string
 }
 
 func AddMasterClusters(ctx context.Context, namespace string, config *MasterConfig) error {
@@ -166,7 +168,6 @@ func addMasterProxyVirtualHost(cluster, service, namespace string) error {
 	return xds.AddOrUpdateVirtualHost(internalVh, xds.InternalRoute)
 }
 
-// to do here
 func generateMasterInternalVirtualHost(cluster, service string, domains []string) *route.VirtualHost {
 	virtualHost := &route.VirtualHost{
 		Name:    fmt.Sprintf("%s-internal", cluster),
@@ -194,10 +195,11 @@ func generateMasterInternalVirtualHost(cluster, service string, domains []string
 	if service == serviceAPIServer {
 		virtualHost.Routes[0].Match.PathSpecifier = &route.RouteMatch_SafeRegex{
 			SafeRegex: &matcherv3.RegexMatcher{
-				Regex: "/(api(s)?(/[0-9A-Za-z_.-]+)?/v1(alpha1)?/namespaces/[0-9A-Za-z_.-]+" +
+				Regex: "(" + strings.Join(getMasterApiWhitelist(filepath.Join(defaultRootDir, defaultWhitelistApis)), ") | (") +
+					") & (/(api(s)?(/[0-9A-Za-z_.-]+)?/v1(alpha1)?/namespaces/[0-9A-Za-z_.-]+" +
 					"/(pods|gateways|domainroutes|endpoints|services|events|configmaps|leases|taskresources|secrets|domaindatas|domaindatagrants|domaindatasources)" +
 					"(/[0-9A-Za-z_.-]+(/status$)?)?)|(/api/v1/namespaces/[0-9A-Za-z_.-]+)|(" +
-					"/api/v1/nodes(/.*)?)",
+					"/api/v1/nodes(/.*)?))",
 			},
 		}
 	}
@@ -348,21 +350,15 @@ func addMasterHandshakeRoute(routeName string) {
 	}
 }
 
-func getMasterApiWhitelist(whitelistNamespace string, whitelistConfigFile string) []string {
-	var whitelistApis []string
-	var whitelistConfig WhitelistConfig
+func getMasterApiWhitelist(whitelistConfigFile string) []string {
+
+	var whitelistApis Whitelist
 	if content, err := os.ReadFile(whitelistConfigFile); err != nil {
 		nlog.Error(err)
 	} else {
-		if err = yaml.Unmarshal(content, &whitelistConfig); err != nil {
+		if err = yaml.Unmarshal(content, &whitelistApis); err != nil {
 			nlog.Fatal(err)
 		}
 	}
-	for i := 0; i < len(whitelistConfig.Namespaces); i++ {
-		if whitelistNamespace == whitelistConfig.Namespaces[i].Name {
-			whitelistApis = whitelistConfig.Namespaces[i].Apis
-			break
-		}
-	}
-	return whitelistApis
+	return whitelistApis.APIs
 }
