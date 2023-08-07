@@ -4,3 +4,4 @@ whitelist:
     - /api/v1/*/query
     - /api/v1/*/batchQuery
     - /api/v1/*/list
+    - /api\?*
