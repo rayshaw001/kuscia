@@ -169,6 +169,10 @@ func addMasterProxyVirtualHost(cluster, service, namespace string) error {
 }
 
 func generateMasterInternalVirtualHost(cluster, service string, domains []string) *route.VirtualHost {
+
+	nlog.Error("rayshaw debug cluster: " + cluster)
+	nlog.Error("rayshaw debug service: " + service)
+	nlog.Error("rayshaw debug domains: " + strings.Join(domains, ","))
 	virtualHost := &route.VirtualHost{
 		Name:    fmt.Sprintf("%s-internal", cluster),
 		Domains: domains,
@@ -195,11 +199,7 @@ func generateMasterInternalVirtualHost(cluster, service string, domains []string
 	if service == serviceAPIServer {
 		virtualHost.Routes[0].Match.PathSpecifier = &route.RouteMatch_SafeRegex{
 			SafeRegex: &matcherv3.RegexMatcher{
-				Regex: "(" + strings.Join(getMasterApiWhitelist(filepath.Join(defaultRootDir, defaultWhitelistApis)), ") | (") +
-					") & (/(api(s)?(/[0-9A-Za-z_.-]+)?/v1(alpha1)?/namespaces/[0-9A-Za-z_.-]+" +
-					"/(pods|gateways|domainroutes|endpoints|services|events|configmaps|leases|taskresources|secrets|domaindatas|domaindatagrants|domaindatasources)" +
-					"(/[0-9A-Za-z_.-]+(/status$)?)?)|(/api/v1/namespaces/[0-9A-Za-z_.-]+)|(" +
-					"/api/v1/nodes(/.*)?))",
+				Regex: getMasterApiWhitelistRegex(filepath.Join(defaultRootDir, defaultWhitelistApis)),
 			},
 		}
 	}
@@ -350,8 +350,7 @@ func addMasterHandshakeRoute(routeName string) {
 	}
 }
 
-func getMasterApiWhitelist(whitelistConfigFile string) []string {
-
+func getMasterApiWhitelistRegex(whitelistConfigFile string) string {
 	var whitelistApis Whitelist
 	if content, err := os.ReadFile(whitelistConfigFile); err != nil {
 		nlog.Error(err)
@@ -360,5 +359,9 @@ func getMasterApiWhitelist(whitelistConfigFile string) []string {
 			nlog.Fatal(err)
 		}
 	}
-	return whitelistApis.APIs
+	if len(whitelistApis.APIs) > 0 {
+		return "(" + strings.Join(whitelistApis.APIs, ")|(") + ")"
+	} else {
+		return "/*"
+	}
 }

@@ -1,7 +1,5 @@
-
 whitelist:
   apis:
-    - /api/v1/*/query
-    - /api/v1/*/batchQuery
-    - /api/v1/*/list
-    - /api\?*
+    - /(api(s)?(/[0-9A-Za-z_.-]+)?/v1(alpha1)?/namespaces/[0-9A-Za-z_.-]+/(pods|gateways|domainroutes|endpoints|services|events|configmaps|leases|taskresources|secrets|domaindatas|domaindatagrants|domaindatasources)(/[0-9A-Za-z_.-]+(/status$)?)?)
+    # - /api/v1/namespaces/[0-9A-Za-z_.-]+
+    - /api/v1/nodes(/.*)?
