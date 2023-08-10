@@ -17,7 +17,7 @@
 
 set -e
 
-usage="$(basename "$0") DOMAIN_ID"
+usage="$(basename "$0") DOMAIN_ID [HOST] [ROLE] [INTERCONN_PROTOCOL]"
 
 DOMAIN_ID=$1
 if [[ ${DOMAIN_ID} == "" ]]; then
@@ -46,17 +46,17 @@ fi
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 
-pushd $ROOT/etc/certs || exit
+pushd $ROOT/etc/certs >/dev/null || exit
 DOMAIN_CERT_FILE=${DOMAIN_ID}.domain.crt
 openssl x509 -req -in ${DOMAIN_ID}.domain.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 10000 -out ${DOMAIN_CERT_FILE}
 CERT=$(base64 ${DOMAIN_CERT_FILE} | tr -d "\n")
-popd || exit
+popd >/dev/null || exit
 
 DOMAIN_TEMPLATE=$(sed "s/{{.DOMAIN_ID}}/${DOMAIN_ID}/g;
   s/{{.CERT}}/${CERT}/g;
   s/{{.ROLE}}/${ROLE}/g" \
   < "${ROOT}/scripts/templates/domain.yaml")
-if [ "$2" == "p2p" ]; then
+if [ "$3" == "p2p" ]; then
   APPEND_LINE=$(printf "\n%*sinterConnProtocols: [ '${INTERCONN_PROTOCOL}' ]" "2")
   DOMAIN_TEMPLATE="${DOMAIN_TEMPLATE}${APPEND_LINE}"
 fi
