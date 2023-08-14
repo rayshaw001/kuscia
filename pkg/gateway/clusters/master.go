@@ -196,11 +196,9 @@ func generateMasterInternalVirtualHost(cluster, service string, domains []string
 	}
 
 	if service == serviceAPIServer {
-		virtualHost.Routes[0].Match = &route.RouteMatch{
-			PathSpecifier: &route.RouteMatch_SafeRegex{
-				SafeRegex: &matcherv3.RegexMatcher{
-					Regex: getMasterApiWhitelistRegex(filepath.Join(defaultRootDir, defaultWhitelistApis)),
-				},
+		virtualHost.Routes[0].Match.PathSpecifier = &route.RouteMatch_SafeRegex{
+			SafeRegex: &matcherv3.RegexMatcher{
+				Regex: getMasterApiWhitelistRegex(filepath.Join(defaultRootDir, defaultWhitelistApis)),
 			},
 		}
 	}
