@@ -63,8 +63,10 @@ type MasterConfig struct {
 	KusciaStorage *ClusterConfig
 }
 
-type Whitelist struct {
-	APIs []string
+type MasterApiWhitelit struct {
+	Whitelist struct {
+		APIs []string `yaml:"apis"`
+	} `yaml:"whitelist"`
 }
 
 func AddMasterClusters(ctx context.Context, namespace string, config *MasterConfig) error {
@@ -170,9 +172,6 @@ func addMasterProxyVirtualHost(cluster, service, namespace string) error {
 
 func generateMasterInternalVirtualHost(cluster, service string, domains []string) *route.VirtualHost {
 
-	nlog.Error("rayshaw debug cluster: " + cluster)
-	nlog.Error("rayshaw debug service: " + service)
-	nlog.Error("rayshaw debug domains: " + strings.Join(domains, ","))
 	virtualHost := &route.VirtualHost{
 		Name:    fmt.Sprintf("%s-internal", cluster),
 		Domains: domains,
@@ -197,9 +196,11 @@ func generateMasterInternalVirtualHost(cluster, service string, domains []string
 	}
 
 	if service == serviceAPIServer {
-		virtualHost.Routes[0].Match.PathSpecifier = &route.RouteMatch_SafeRegex{
-			SafeRegex: &matcherv3.RegexMatcher{
-				Regex: getMasterApiWhitelistRegex(filepath.Join(defaultRootDir, defaultWhitelistApis)),
+		virtualHost.Routes[0].Match = &route.RouteMatch{
+			PathSpecifier: &route.RouteMatch_SafeRegex{
+				SafeRegex: &matcherv3.RegexMatcher{
+					Regex: getMasterApiWhitelistRegex(filepath.Join(defaultRootDir, defaultWhitelistApis)),
+				},
 			},
 		}
 	}
@@ -351,7 +352,8 @@ func addMasterHandshakeRoute(routeName string) {
 }
 
 func getMasterApiWhitelistRegex(whitelistConfigFile string) string {
-	var whitelistApis Whitelist
+	var whitelistApis MasterApiWhitelit
+	var result = "/*"
 	if content, err := os.ReadFile(whitelistConfigFile); err != nil {
 		nlog.Error(err)
 	} else {
@@ -359,9 +361,8 @@ func getMasterApiWhitelistRegex(whitelistConfigFile string) string {
 			nlog.Fatal(err)
 		}
 	}
-	if len(whitelistApis.APIs) > 0 {
-		return "(" + strings.Join(whitelistApis.APIs, ")|(") + ")"
-	} else {
-		return "/*"
+	if len(whitelistApis.Whitelist.APIs) > 0 {
+		result = "(" + strings.Join(whitelistApis.Whitelist.APIs, ")|(") + ")"
 	}
+	return result
 }
